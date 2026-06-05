@@ -1,0 +1,5 @@
+com/cad/service/RuleService.class
+com/cad/service/StorageService.class
+com/cad/Main.class
+com/cad/config/AWSConfig.class
+com/cad/service/HistoryService.class

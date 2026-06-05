@@ -1,0 +1,5 @@
+/home/ubuntu/cad-validation-service/src/main/java/com/cad/Main.java
+/home/ubuntu/cad-validation-service/src/main/java/com/cad/service/StorageService.java
+/home/ubuntu/cad-validation-service/src/main/java/com/cad/service/HistoryService.java
+/home/ubuntu/cad-validation-service/src/main/java/com/cad/service/RuleService.java
+/home/ubuntu/cad-validation-service/src/main/java/com/cad/config/AWSConfig.java
