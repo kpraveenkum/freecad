@@ -1,0 +1,186 @@
+package com.cad;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.web.bind.annotation.*;
+import java.util.*;
+import java.util.stream.Collectors;
+
+@SpringBootApplication
+@RestController
+@RequestMapping("/api")
+public class Main {
+    
+    // Design Standards
+    private static final double MIN_WALL_THICKNESS = 1.5;
+    private static final double MIN_HOLE_DIAMETER = 2.0;
+    private static final int MAX_FEATURES = 50;
+    private static final double MAX_ASPECT_RATIO = 10.0;
+    
+    public static void main(String[] args) {
+        SpringApplication.run(Main.class, args);
+        System.out.println("\n========================================");
+        System.out.println("✅ CAD VALIDATION SERVICE STARTED");
+        System.out.println("========================================");
+        System.out.println("📍 Health Check: http://localhost:8080/api/health");
+        System.out.println("📍 Validate Endpoint: POST http://localhost:8080/api/validate");
+        System.out.println("========================================\n");
+    }
+    
+    @GetMapping("/health")
+    public Map<String, Object> health() {
+        Map<String, Object> status = new LinkedHashMap<>();
+        status.put("status", "running");
+        status.put("service", "CAD Validation Service");
+        status.put("version", "1.0.0");
+        status.put("timestamp", new Date().toString());
+        status.put("standards", Map.of(
+            "min_wall_thickness", MIN_WALL_THICKNESS + "mm",
+            "min_hole_diameter", MIN_HOLE_DIAMETER + "mm",
+            "max_features", MAX_FEATURES
+        ));
+        return status;
+    }
+    
+    @PostMapping("/validate")
+    public Map<String, Object> validateDesign(@RequestBody Map<String, Object> request) {
+        
+        // Extract data
+        String designName = (String) request.getOrDefault("name", "Unknown");
+        Number minThickness = (Number) request.get("min_thickness");
+        Number featureCount = (Number) request.get("feature_count");
+        List<Map<String, Object>> features = (List<Map<String, Object>>) request.get("features");
+        
+        System.out.println("\n📥 [" + new Date() + "] Validating: " + designName);
+        System.out.println("   Features: " + featureCount);
+        System.out.println("   Min Thickness: " + minThickness + "mm");
+        
+        List<Map<String, Object>> violations = new ArrayList<>();
+        
+        // RULE 1: Wall Thickness Check
+        if (minThickness != null && minThickness.doubleValue() < MIN_WALL_THICKNESS) {
+            Map<String, Object> violation = new LinkedHashMap<>();
+            violation.put("rule_id", "WALL_THICKNESS_001");
+            violation.put("severity", "CRITICAL");
+            violation.put("message", String.format(
+                "Wall thickness %.2fmm is below minimum requirement of %.1fmm",
+                minThickness.doubleValue(), MIN_WALL_THICKNESS));
+            violation.put("suggested_fix", "Increase wall thickness to at least " + MIN_WALL_THICKNESS + "mm");
+            violation.put("object_ids", getThinObjects(features, MIN_WALL_THICKNESS));
+            violations.add(violation);
+        }
+        
+        // RULE 2: Feature Count Check
+        if (featureCount != null && featureCount.intValue() > MAX_FEATURES) {
+            Map<String, Object> violation = new LinkedHashMap<>();
+            violation.put("rule_id", "COMPLEXITY_001");
+            violation.put("severity", "WARNING");
+            violation.put("message", String.format(
+                "Design has %d features, which exceeds recommended maximum of %d",
+                featureCount.intValue(), MAX_FEATURES));
+            violation.put("suggested_fix", "Consider splitting design into sub-assemblies");
+            violation.put("object_ids", Collections.emptyList());
+            violations.add(violation);
+        }
+        
+        // RULE 3: Individual Feature Checks
+        if (features != null) {
+            for (Map<String, Object> feature : features) {
+                String featureType = (String) feature.get("type");
+                String featureLabel = (String) feature.get("label");
+                Number featureThickness = (Number) feature.get("min_thickness");
+                Map<String, Double> bbox = (Map<String, Double>) feature.get("bbox");
+                
+                // Hole size check
+                if (featureType != null && featureType.contains("Hole") &&
+                    featureThickness != null && featureThickness.doubleValue() < MIN_HOLE_DIAMETER) {
+                    Map<String, Object> violation = new LinkedHashMap<>();
+                    violation.put("rule_id", "HOLE_SIZE_002");
+                    violation.put("severity", "WARNING");
+                    violation.put("message", String.format(
+                        "Hole '%s' diameter %.2fmm is below recommended %.1fmm",
+                        featureLabel, featureThickness.doubleValue(), MIN_HOLE_DIAMETER));
+                    violation.put("suggested_fix", "Use standard drill size of " + MIN_HOLE_DIAMETER + "mm or larger");
+                    violation.put("object_ids", List.of(feature.get("id")));
+                    violations.add(violation);
+                }
+                
+                // Aspect ratio check
+                if (bbox != null && !bbox.isEmpty()) {
+                    double maxDim = Collections.max(bbox.values());
+                    double minDim = Collections.min(bbox.values());
+                    if (minDim > 0 && (maxDim / minDim) > MAX_ASPECT_RATIO) {
+                        Map<String, Object> violation = new LinkedHashMap<>();
+                        violation.put("rule_id", "ASPECT_RATIO_003");
+                        violation.put("severity", "WARNING");
+                        violation.put("message", String.format(
+                            "Feature '%s' has aspect ratio %.1f:1, exceeds maximum %.1f:1",
+                            featureLabel, maxDim / minDim, MAX_ASPECT_RATIO));
+                        violation.put("suggested_fix", "Redesign feature to be more balanced");
+                        violation.put("object_ids", List.of(feature.get("id")));
+                        violations.add(violation);
+                    }
+                }
+            }
+        }
+        
+        // Calculate Score
+        int score = 100;
+        for (Map<String, Object> v : violations) {
+            String severity = (String) v.get("severity");
+            score -= severity.equals("CRITICAL") ? 30 : 15;
+        }
+        score = Math.max(0, score);
+        
+        // Generate Summary and Recommendation
+        boolean success = violations.isEmpty();
+        long criticalCount = violations.stream()
+            .filter(v -> "CRITICAL".equals(v.get("severity")))
+            .count();
+        long warningCount = violations.size() - criticalCount;
+        
+        String summary;
+        String recommendation;
+        
+        if (success) {
+            summary = "✅ EXCELLENT! All design standards met. Design is ready for production.";
+            recommendation = "Proceed to manufacturing with confidence.";
+        } else if (criticalCount > 0) {
+            summary = String.format("❌ CRITICAL: %d critical issue(s) found. Design requires immediate attention.", criticalCount);
+            recommendation = "Fix all CRITICAL issues before proceeding to manufacturing.";
+        } else {
+            summary = String.format("⚠️ WARNING: %d warning(s) found. Design needs improvements.", warningCount);
+            recommendation = "Review and address warnings to improve design quality.";
+        }
+        
+        // Build Response
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("success", success);
+        response.put("score", score);
+        response.put("status", success ? "PASSED" : "FAILED");
+        response.put("violations_count", violations.size());
+        response.put("violations", violations);
+        response.put("summary", summary);
+        response.put("recommendation", recommendation);
+        response.put("timestamp", new Date().toString());
+        response.put("design_name", designName);
+        
+        System.out.println("   Score: " + score + "/100");
+        System.out.println("   Violations: " + violations.size());
+        System.out.println("   Status: " + (success ? "PASSED ✅" : "FAILED ❌"));
+        
+        return response;
+    }
+    
+    private List<String> getThinObjects(List<Map<String, Object>> features, double threshold) {
+        if (features == null) return Collections.emptyList();
+        return features.stream()
+            .filter(f -> {
+                Number thickness = (Number) f.get("min_thickness");
+                return thickness != null && thickness.doubleValue() < threshold;
+            })
+            .map(f -> (String) f.get("id"))
+            .filter(Objects::nonNull)
+            .collect(Collectors.toList());
+    }
+}
