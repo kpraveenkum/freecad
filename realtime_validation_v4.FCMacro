@@ -1,0 +1,148 @@
+# ============================================
+# REAL-TIME CAD VALIDATION v4.0
+# Auto-validates on design changes
+# ============================================
+
+__Title__ = "Real-Time CAD Validation v4.0"
+
+import FreeCAD
+import FreeCADGui
+from PySide import QtGui, QtCore
+import requests
+import threading
+import time
+
+EC2_PUBLIC_IP = "34.195.137.185"
+API_URL = f"http://{EC2_PUBLIC_IP}:8080/api/validate"
+TIMEOUT = 5
+AUTO_VALIDATE_DELAY = 800
+
+COLOR_CRITICAL = (1.0, 0.2, 0.2)
+COLOR_WARNING = (1.0, 0.8, 0.2)
+COLOR_GOOD = (0.2, 0.8, 0.2)
+COLOR_DEFAULT = (0.8, 0.8, 0.8)
+
+class RealTimeValidator:
+    _instance = None
+    _timer = None
+    _enabled = True
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
+    
+    def __init__(self):
+        if self._initialized:
+            return
+        self._initialized = True
+        self._session = requests.Session()
+        self.setup_observer()
+        self.create_status_widget()
+        print("✅ Real-Time Validator Activated")
+    
+    def setup_observer(self):
+        self.observer = DocumentObserver()
+        FreeCADGui.addDocumentObserver(self.observer)
+    
+    def create_status_widget(self):
+        mw = FreeCADGui.getMainWindow()
+        if mw:
+            self._status_label = mw.statusBar().addWidget(QtGui.QLabel("🟢 Real-Time: ACTIVE"))
+    
+    def on_document_change(self):
+        if not self._enabled:
+            return
+        if self._timer:
+            self._timer.stop()
+        self._timer = QtCore.QTimer()
+        self._timer.setSingleShot(True)
+        self._timer.timeout.connect(self.validate)
+        self._timer.start(AUTO_VALIDATE_DELAY)
+    
+    def validate(self):
+        doc = FreeCAD.ActiveDocument
+        if not doc:
+            return
+        
+        features = []
+        for obj in doc.Objects:
+            if hasattr(obj, 'Shape') and obj.Shape:
+                bbox = obj.Shape.BoundBox
+                features.append({
+                    "id": obj.Name,
+                    "label": obj.Label or obj.Name,
+                    "min_thickness": min(bbox.XLength, bbox.YLength, bbox.ZLength),
+                    "bbox": {"x": bbox.XLength, "y": bbox.YLength, "z": bbox.ZLength}
+                })
+        
+        if not features:
+            return
+        
+        payload = {
+            "name": doc.Name,
+            "features": features,
+            "min_thickness": min(f["min_thickness"] for f in features),
+            "feature_count": len(features)
+        }
+        
+        try:
+            response = self._session.post(API_URL, json=payload, timeout=TIMEOUT)
+            if response.status_code == 200:
+                result = response.json()
+                QtCore.QTimer.singleShot(0, lambda: self.update_ui(result, doc))
+        except:
+            pass
+    
+    def update_ui(self, result, doc):
+        score = result.get("score", 0)
+        violations = result.get("violations", [])
+        
+        # Reset colors
+        for obj in doc.Objects:
+            if hasattr(obj, "ViewObject"):
+                obj.ViewObject.ShapeColor = COLOR_DEFAULT
+        
+        if violations:
+            for v in violations:
+                color = COLOR_CRITICAL if v.get("severity") == "CRITICAL" else COLOR_WARNING
+                for obj_id in v.get("object_ids", []):
+                    obj = doc.getObject(obj_id)
+                    if obj and hasattr(obj, "ViewObject"):
+                        obj.ViewObject.ShapeColor = color
+                        obj.ViewObject.Transparency = 30
+        else:
+            for obj in doc.Objects:
+                if hasattr(obj, "ViewObject"):
+                    obj.ViewObject.ShapeColor = COLOR_GOOD
+                    obj.ViewObject.Transparency = 10
+        
+        icon = "🟢" if score >= 80 else ("🟡" if score >= 50 else "🔴")
+        if hasattr(self, '_status_label'):
+            self._status_label.setText(f"{icon} Score: {score}/100")
+        
+        FreeCADGui.updateGui()
+    
+    def set_enabled(self, enabled):
+        self._enabled = enabled
+
+class DocumentObserver:
+    def slotChangedObject(self, obj, prop):
+        if prop in ["Shape", "Placement", "Length", "Width", "Height", "Radius"]:
+            RealTimeValidator().on_document_change()
+    def slotCreatedObject(self, obj):
+        RealTimeValidator().on_document_change()
+    def slotDeletedObject(self, obj):
+        RealTimeValidator().on_document_change()
+
+def start_realtime():
+    RealTimeValidator().set_enabled(True)
+    print("✅ Real-time validation started")
+
+def stop_realtime():
+    RealTimeValidator().set_enabled(False)
+    print("⏸️ Real-time validation paused")
+
+if __name__ == "__main__":
+    start_realtime()

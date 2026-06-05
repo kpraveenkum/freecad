@@ -1,0 +1,142 @@
+# ============================================
+# CAD VALIDATION WITH AWS EC2 - v4.0
+# Optimized Version
+# ============================================
+
+__Title__ = "CAD Validation with AWS v4.0"
+__Version__ = "4.0"
+
+import FreeCAD
+import FreeCADGui
+from PySide import QtGui
+import requests
+import json
+import threading
+import time
+from datetime import datetime
+
+# ============================================
+# CONFIGURATION
+# ============================================
+EC2_PUBLIC_IP = "34.195.137.185"
+API_URL = f"http://{EC2_PUBLIC_IP}:8080/api/validate"
+HEALTH_URL = f"http://{EC2_PUBLIC_IP}:8080/api/health"
+TIMEOUT = 5
+AUTO_VALIDATE_DELAY = 800
+
+# Colors
+COLOR_CRITICAL = (1.0, 0.2, 0.2)
+COLOR_WARNING = (1.0, 0.8, 0.2)
+COLOR_GOOD = (0.2, 0.8, 0.2)
+COLOR_DEFAULT = (0.8, 0.8, 0.8)
+
+# ============================================
+# MAIN VALIDATION FUNCTION
+# ============================================
+
+def validate():
+    doc = FreeCAD.ActiveDocument
+    if not doc:
+        FreeCAD.Console.PrintError("❌ No active document!\n")
+        return
+    
+    print("\n" + "="*60)
+    print("🔍 CAD VALIDATION WITH AWS EC2 v4.0")
+    print("="*60)
+    
+    # Check EC2 health
+    try:
+        response = requests.get(HEALTH_URL, timeout=3)
+        if response.status_code != 200:
+            FreeCAD.Console.PrintError("❌ EC2 service not responding\n")
+            return
+        print("✅ EC2 service online\n")
+    except:
+        FreeCAD.Console.PrintError("❌ Cannot connect to EC2\n")
+        return
+    
+    # Extract features
+    features = []
+    for obj in doc.Objects:
+        if hasattr(obj, 'Shape') and obj.Shape and obj.Shape.isValid():
+            bbox = obj.Shape.BoundBox
+            min_thick = min(bbox.XLength, bbox.YLength, bbox.ZLength)
+            features.append({
+                "id": obj.Name,
+                "label": obj.Label or obj.Name,
+                "type": obj.TypeId.split('::')[-1],
+                "min_thickness": round(min_thick, 2),
+                "volume": round(obj.Shape.Volume, 2),
+                "bbox": {
+                    "x": round(bbox.XLength, 2),
+                    "y": round(bbox.YLength, 2),
+                    "z": round(bbox.ZLength, 2)
+                }
+            })
+    
+    if not features:
+        FreeCAD.Console.PrintError("❌ No valid features found!\n")
+        return
+    
+    min_thickness = min(f["min_thickness"] for f in features)
+    
+    payload = {
+        "name": doc.Name,
+        "features": features,
+        "min_thickness": min_thickness,
+        "feature_count": len(features),
+        "total_volume": sum(f["volume"] for f in features)
+    }
+    
+    try:
+        start = time.time()
+        response = requests.post(API_URL, json=payload, timeout=TIMEOUT)
+        elapsed = (time.time() - start) * 1000
+        
+        if response.status_code == 200:
+            result = response.json()
+            score = result.get("score", 0)
+            status = result.get("status", "UNKNOWN")
+            violations = result.get("violations", [])
+            
+            print(f"\n📊 RESULTS")
+            print("="*40)
+            print(f"✅ Score: {score}/100")
+            print(f"📊 Status: {status}")
+            print(f"⏱️ Time: {elapsed:.0f}ms")
+            
+            if violations:
+                print(f"\n⚠️ Violations ({len(violations)}):")
+                for v in violations:
+                    print(f"   🔴 {v.get('message', '')}")
+                    print(f"      → Fix: {v.get('suggested_fix', '')}")
+            
+            # Highlight objects
+            reset_highlighting(doc)
+            if violations:
+                for v in violations:
+                    color = COLOR_CRITICAL if v.get("severity") == "CRITICAL" else COLOR_WARNING
+                    for obj_id in v.get("object_ids", []):
+                        obj = doc.getObject(obj_id)
+                        if obj and hasattr(obj, "ViewObject"):
+                            obj.ViewObject.ShapeColor = color
+                            obj.ViewObject.Transparency = 30
+            else:
+                for obj in doc.Objects:
+                    if hasattr(obj, "ViewObject"):
+                        obj.ViewObject.ShapeColor = COLOR_GOOD
+                        obj.ViewObject.Transparency = 10
+            
+            FreeCADGui.updateGui()
+            print("\n✅ Validation complete!\n")
+    except Exception as e:
+        FreeCAD.Console.PrintError(f"❌ Error: {str(e)}\n")
+
+def reset_highlighting(doc):
+    for obj in doc.Objects:
+        if hasattr(obj, "ViewObject") and obj.ViewObject:
+            obj.ViewObject.ShapeColor = COLOR_DEFAULT
+            obj.ViewObject.Transparency = 0
+
+if __name__ == "__main__":
+    validate()
