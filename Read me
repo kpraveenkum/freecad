@@ -1,1 +1,529 @@
+# CAD VALIDATION SYSTEM USING AWS, SPRING BOOT, FREECAD AND MACHINE LEARNING
+
+# PROJECT DOCUMENTATION
+
+Student Name : ______________________
+Roll Number  : ______________________
+Department   : ______________________
+Institution  : ______________________
+
+---
+
+1. PROJECT TITLE
+
+---
+
+Cloud-Based CAD Validation System using AWS Services, Spring Boot, FreeCAD
+Integration, DynamoDB, Lambda, API Gateway and Machine Learning.
+
+---
+
+2. PROJECT OBJECTIVE
+
+---
+
+The objective of this project is to build a cloud-native CAD validation
+platform capable of validating CAD designs against predefined design rules.
+The system integrates FreeCAD with a Spring Boot backend hosted on AWS EC2,
+while AWS services such as DynamoDB, Lambda, API Gateway, and S3 provide
+storage, validation, automation, and scalability.
+
+---
+
+3. PROBLEM STATEMENT
+
+---
+
+Manual validation of CAD designs is time-consuming and error-prone.
+Engineers often need to verify multiple design constraints before production.
+
+This project automates the validation process by:
+
+• Extracting design data from FreeCAD.
+• Sending data to a cloud-hosted validation engine.
+• Checking design rules stored in DynamoDB.
+• Returning violations automatically.
+• Highlighting design issues inside FreeCAD.
+
+---
+
+4. SYSTEM ARCHITECTURE
+
+---
+
+[INSERT ARCHITECTURE DIAGRAM IMAGE HERE]
+
+Image Name:
+architecture_diagram.png
+
+Description:
+Overall architecture showing FreeCAD → Spring Boot → AWS Services →
+DynamoDB → Lambda → API Gateway → S3.
+
+---
+
+5. TECHNOLOGY STACK
+
+---
+
+Frontend / CAD Tool:
+• FreeCAD
+
+Backend:
+• Spring Boot (Java 17)
+
+Programming Languages:
+• Java
+• Python
+
+AWS Services:
+• EC2
+• DynamoDB
+• Lambda
+• API Gateway
+• S3
+• IAM
+• CloudWatch
+
+Monitoring:
+• Prometheus
+• Grafana
+
+DevOps:
+• GitHub Actions
+• Docker
+• Docker Compose
+
+Machine Learning:
+• Scikit-learn
+
+---
+
+6. PHASE 0 – EC2 SETUP
+
+---
+
+## 6.1 EC2 Instance Creation
+
+Instance Type:
+t3.medium
+
+Operating System:
+Ubuntu Linux
+
+IAM Role:
+EC2-Admin-Role
+
+[INSERT EC2 DASHBOARD SCREENSHOT HERE]
+
+Image Name:
+ec2_instance.png
+
+## 6.2 Installed Packages
+
+• Docker
+• Docker Compose
+• OpenJDK 17
+• Maven
+• Python3
+• AWS CLI
+• Scikit-learn
+• Flask
+
+[INSERT TERMINAL SCREENSHOT HERE]
+
+Image Name:
+ec2_setup_terminal.png
+
+## 6.3 AWS CLI Verification
+
+Command:
+
+aws sts get-caller-identity
+
+[INSERT OUTPUT SCREENSHOT HERE]
+
+Image Name:
+aws_cli_identity.png
+
+---
+
+7. PHASE 1 – SPRING BOOT VALIDATION SERVICE
+
+---
+
+## 7.1 Service Overview
+
+A REST API was developed using Spring Boot to receive CAD design data and
+validate it against predefined design rules.
+
+Endpoint:
+
+POST /api/validate
+
+## 7.2 Spring Boot Project Structure
+
+[INSERT PROJECT STRUCTURE IMAGE HERE]
+
+Image Name:
+springboot_structure.png
+
+## 7.3 Controller Code
+
+[INSERT CONTROLLER CODE HERE]
+
+---
+
+## PASTE ValidatorController.java
+
+## 7.4 Application Configuration
+
+[INSERT application.properties HERE]
+
+## 7.5 Build and Deployment
+
+Commands Used:
+
+mvn clean package
+
+java -jar cad-validator.jar
+
+[INSERT TERMINAL OUTPUT SCREENSHOT HERE]
+
+Image Name:
+springboot_running.png
+
+---
+
+8. PHASE 2 – AWS INFRASTRUCTURE
+
+---
+
+## 8.1 DynamoDB Table Creation
+
+Table Name:
+DesignRules
+
+[INSERT DYNAMODB TABLE SCREENSHOT HERE]
+
+Image Name:
+dynamodb_table.png
+
+## 8.2 Sample Rule Insertion
+
+Example Rule:
+
+Rule ID:
+WALL_THICKNESS_001
+
+Condition:
+wall_thickness >= 1.5
+
+[INSERT DYNAMODB RECORD SCREENSHOT HERE]
+
+Image Name:
+dynamodb_rule.png
+
+## 8.3 S3 Bucket Creation
+
+Bucket Name:
+
+---
+
+[INSERT S3 BUCKET SCREENSHOT HERE]
+
+Image Name:
+s3_bucket.png
+
+## 8.4 Lambda Function Deployment
+
+Function Name:
+cad-validate-engine
+
+Runtime:
+Java 17
+
+[INSERT LAMBDA DASHBOARD SCREENSHOT HERE]
+
+Image Name:
+lambda_function.png
+
+## 8.5 API Gateway Setup
+
+API Name:
+CAD-Validation-API
+
+Endpoint:
+
+---
+
+[INSERT API GATEWAY SCREENSHOT HERE]
+
+Image Name:
+api_gateway.png
+
+---
+
+9. PHASE 3 – FREECAD PLUGIN DEVELOPMENT
+
+---
+
+## 9.1 Macro Overview
+
+The FreeCAD macro extracts model information and sends it to the validation
+service running on AWS EC2.
+
+## 9.2 Macro Code
+
+[INSERT FREECAD MACRO CODE HERE]
+
+---
+
+## PASTE FREECAD MACRO
+
+## 9.3 FreeCAD Interface
+
+[INSERT FREECAD SCREENSHOT HERE]
+
+Image Name:
+freecad_model.png
+
+## 9.4 Validation Result
+
+[INSERT VIOLATION HIGHLIGHT SCREENSHOT HERE]
+
+Image Name:
+validation_result.png
+
+Description:
+Objects violating design rules are highlighted in red.
+
+---
+
+10. PHASE 4 – DEVOPS & MONITORING
+
+---
+
+## 10.1 GitHub Actions CI/CD
+
+Purpose:
+Automatically deploy Lambda functions when code is pushed to GitHub.
+
+[INSERT GITHUB ACTIONS WORKFLOW IMAGE HERE]
+
+Image Name:
+github_actions.png
+
+Workflow File:
+
+deploy.yml
+
+[INSERT YAML CODE HERE]
+
+## 10.2 Docker Setup
+
+Services:
+• Prometheus
+• Grafana
+
+Docker Compose File:
+
+[INSERT docker-compose.yml HERE]
+
+## 10.3 Grafana Dashboard
+
+[INSERT GRAFANA DASHBOARD SCREENSHOT HERE]
+
+Image Name:
+grafana_dashboard.png
+
+## 10.4 Prometheus Metrics
+
+[INSERT PROMETHEUS SCREENSHOT HERE]
+
+Image Name:
+prometheus_metrics.png
+
+---
+
+11. MACHINE LEARNING MODULE (OPTIONAL)
+
+---
+
+## 11.1 Model Training
+
+Algorithm:
+
+---
+
+Dataset:
+
+---
+
+Training Command:
+
+python3 train_model.py
+
+## 11.2 Training Code
+
+[INSERT train_model.py CODE HERE]
+
+## 11.3 Training Results
+
+Accuracy:
+
+---
+
+Precision:
+
+---
+
+Recall:
+
+---
+
+[INSERT TRAINING RESULT SCREENSHOT HERE]
+
+Image Name:
+ml_training.png
+
+---
+
+12. TESTING
+
+---
+
+## 12.1 API Testing
+
+Tool:
+Postman / Curl
+
+Sample Request:
+
+{
+"feature_type": "extrusion",
+"parameters": {
+"length": 2.5
+}
+}
+
+Sample Response:
+
+{
+"violations": []
+}
+
+[INSERT API TEST SCREENSHOT HERE]
+
+Image Name:
+api_test.png
+
+## 12.2 End-to-End Testing
+
+Flow:
+
+FreeCAD
+↓
+Spring Boot
+↓
+DynamoDB
+↓
+Validation Engine
+↓
+Result Returned
+
+[INSERT END-TO-END TEST SCREENSHOT HERE]
+
+Image Name:
+e2e_testing.png
+
+---
+
+13. RESULTS
+
+---
+
+Achievements:
+
+✓ EC2 successfully configured.
+
+✓ Spring Boot validation service deployed.
+
+✓ DynamoDB design rule engine operational.
+
+✓ Lambda validation service deployed.
+
+✓ API Gateway integrated.
+
+✓ FreeCAD plugin developed.
+
+✓ CI/CD automation implemented.
+
+✓ Monitoring dashboard configured.
+
+✓ End-to-end validation completed.
+
+[INSERT FINAL RESULT SCREENSHOT HERE]
+
+Image Name:
+final_result.png
+
+---
+
+14. COST ANALYSIS
+
+---
+
+| Service       | Monthly Cost |
+| ------------- | ------------ |
+| EC2           | $15.00       |
+| S3            | $0.50        |
+| Data Transfer | $2.00        |
+| Others        | $0.00        |
+
+Total Cost:
+Approximately $17.50/month
+
+---
+
+15. FUTURE ENHANCEMENTS
+
+---
+
+• AI-based design recommendations.
+• Automated CAD repair suggestions.
+• Multi-CAD software integration.
+• Real-time collaboration.
+• Advanced anomaly detection using ML.
+• Kubernetes deployment.
+
+---
+
+16. CONCLUSION
+
+---
+
+The CAD Validation System successfully demonstrates a cloud-native
+architecture capable of validating CAD designs using AWS services,
+Spring Boot, FreeCAD integration, and automated rule processing.
+The system reduces manual effort, improves validation accuracy,
+and provides a scalable foundation for future intelligent CAD
+validation solutions.
+
+---
+
+17. REFERENCES
+
+---
+
+1. AWS Documentation
+2. Spring Boot Documentation
+3. FreeCAD Documentation
+4. DynamoDB Documentation
+5. AWS Lambda Documentation
+6. API Gateway Documentation
+7. Grafana Documentation
+8. Prometheus Documentation
+
+======================== END OF DOCUMENT ========================
 
